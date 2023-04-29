@@ -34,6 +34,12 @@ class ExprCoefs(NamedTuple):
     right: dict
 
     def __str__(self) -> str:
+        """
+        Tranasforma o objeto ExprCoefs em uma strings
+
+        Returns:
+            str: string que descreve o objeto ExprCoefs
+        """
         exp = ''
         left_vars = list(self.left.keys())
         right_vars = list(self.right.keys())
