@@ -16,28 +16,32 @@ def parse(file):
 
     with open(file) as f:
         lines = f.readlines()
-        obj = lines[0]
-        restrictions = lines[1:]
-        parsed_obj = parse_obj(obj)
-        parsed_restrictions = parse_restrictions(restrictions)
-        
-    return None
+
+    type_obj, obj = parse_obj(lines[0])
+    variables, restrictions = parse_restrictions(lines[1:])
+
+    sub_obj, sub_restrictions, new_variables, sub_rules = sub_variables(obj, restrictions, variables)
+
+    normal_restriction = to_normal_form(sub_restrictions)
+
+    print(normal_restriction)
+    return type
 
 def parse_obj(obj):
     """
     Interpreta a funcao objetivo do programa
 
     Args:
-        line (str): linha da funcao que possui a funcao objetivo
+        obj (str): linha da funcao que possui a funcao objetivo
 
     Returns:
-        dict(): dicionario que associa as variaveis da funcao objetivo e suas constantes associadas
+        str, set, dict: se o problema é maximo ou minimo, as variaveis e coeficientes da funcao objetivo
     """
     obj_type = 'MAX' if 'MAX' in obj else 'MIN'
 
     tokens = get_tokens(obj)
-
     coefs = get_coeficients(tokens)
+
     return obj_type, coefs
 
 def parse_restrictions(restrictions):
@@ -89,6 +93,4 @@ def parse_restrictions(restrictions):
 
     coefs = [simplify(ExprCoefs(get_coeficients(expr.left), expr.op, get_coeficients(expr.right))) for expr in ste_exprs]
 
-    
-
-    return coefs
+    return variables, coefs

@@ -245,4 +245,202 @@ def simplify(expr):
         
         right['__CONST__'] = 0 - right['__CONST__']
     
+    # print(left, op, right)
     return ExprCoefs(left, op, right)
+
+
+def sub_variables(obj, restrictions, variables):
+    """
+    Substitui as variaveis do programa por outras que podem ser processadas usando programacao linear
+
+    Args:
+        obj (dict): a funcao objetivo na forma de um dicionario
+        restrictions (list of ExprCoefs): as restricoes do problema na forma de ExprCoefs
+        variables (set of strings): as variaveis originais do problema
+
+    Returns:
+        dict, list of ExprCoefs, set, list of dicts: funcoes objetivo, restricoes e conjunto de variaveis
+                                                     apos alteracao e as transformacoes de variaveis que foram feitas
+    """
+    variables_domain = []
+    valid_restrictions = []
+
+    #* encontra restricoes que definem o dominio de variaveis
+    for i in range(len(restrictions)):
+        if len(restrictions[i].left) == 1:
+            variables_domain.append((i, restrictions[i]))
+        else:
+            valid_restrictions.append((i, restrictions[i]))
+    
+    #* junta as variaveis da funcao objetivo as das restricoes
+    all_vars = set(obj.keys()).union(variables)
+    all_vars.discard('__CONST__')
+
+    sub_list = []
+    keep_restriction = []
+
+    #* define como serao feitas as substituicoes no problema
+    for restriction in variables_domain:
+        var = list(restriction[1].left.keys())[0]
+        op = restriction[1].op
+        const = restriction[1].right['__CONST__']/restriction[1].left[var]
+        
+        if const < 0:
+            const = 0 - const
+            if op == '<=':
+                op = '>='
+            elif op == '>=':
+                op = '<='
+
+        #* var na forma ideal
+        if op == '>=' and const == Fraction(0,1):
+            continue
+        #* var menor ou igual a zero
+        elif op == '<=' and const == Fraction(0,1):
+            sub_list.append({'original': var, 
+                             'new': '__INV__' + var,
+                             'type': 'inv'})
+        #* var limitada inferiormente 
+        elif op == '>=' and const > Fraction(0,1):
+            sub_list.append({'original': var, 
+                             'new': '__SUM__' + var,
+                             'type': 'sum',
+                             'const': const})
+        #* var limitada superiormente eh tratada como retricao do problema
+        elif op == '<=' and const > Fraction(0,1):
+            keep_restriction.append(restriction[0])
+
+    #* encontra variaveis livres do programa
+    free_vars = []
+    for var in all_vars:
+        is_free = True
+        
+        for va_d in variables_domain:
+            if var in va_d[1].left:
+                is_free = False
+        
+        if is_free:
+            free_vars.append(var)
+
+    #* define como serao feitas as substituicoes de variaveis livres
+    for var in free_vars:
+        sub_list.append({'original': var,
+                         'new1': '__FREE1__'+var,
+                         'new2': '__FREE2__'+var,
+                         'type': 'free'})
+
+    #* mantem certos indicadores de dominio como se fossem restricoes
+    for i in keep_restriction:
+        valid_restrictions.append((i, restrictions[i]))
+
+    #* faz as substituicoes
+    new_obj = sub_vars_obj(obj, sub_list)
+    new_restrictions = [sub_vars_restriction(restriction, sub_list) for restriction in valid_restrictions]
+
+    #* encontra o novo conjunto de variaveis
+    new_variables = set(new_obj.keys())
+    for restriction in new_restrictions:
+        new_variables.union(restriction.left.keys())
+
+    return new_obj, new_restrictions, new_variables, sub_list
+
+def sub_vars_obj(obj, sub_list):
+    """
+    Faz as substituicoes de variaveis na funcao objetivo
+
+    Args:
+        obj (dict): a funcao objetivo na forma de um dicionario
+        sub_list (list of dicts): regras de substituicao
+
+    Returns:
+        dict: nova funcao objetivo
+    """
+    for i in range(len(sub_list)):
+        if sub_list[i]['original'] in obj:
+            if sub_list[i]['type'] == 'inv':
+                obj[sub_list[i]['new']] = (0 - obj[sub_list[i]['original']])
+                obj.pop(sub_list[i]['original'])
+            elif sub_list[i]['type'] == 'sum':
+                obj[sub_list[i]['new']] = obj[sub_list[i]['original']]
+                if '__CONST__' in obj:
+                    obj['__CONST__'] -= obj[sub_list[i]['original']]*sub_list[i]['const']
+                else:
+                    obj['__CONST__'] = 0 - obj[sub_list[i]['original']]*sub_list[i]['const']
+                obj.pop(sub_list[i]['original'])
+            elif sub_list[i]['type'] == 'free':
+                obj[sub_list[i]['new1']] = obj[sub_list[i]['original']]
+                obj[sub_list[i]['new2']] = 0 - obj[sub_list[i]['original']]
+                obj.pop(sub_list[i]['original'])
+
+    return obj
+
+def sub_vars_restriction(restriction, sub_list):
+    """
+    Faz as substituicoes de variaveis nas restricoes
+
+    Args:
+        restriction (ExprCoefs): restricao na forma ExprCoefs
+        sub_list (list of dicts): regras de substituicao
+
+    Returns:
+        ExprCoefs: nova restricao
+    """
+    new_restriction = restriction[1]
+    
+    for i in range(len(sub_list)):
+        if sub_list[i]['original'] in new_restriction.left:
+            if sub_list[i]['type'] == 'inv':
+                new_restriction.left[sub_list[i]['new']] = (0 - new_restriction.left[sub_list[i]['original']])
+                new_restriction.left.pop(sub_list[i]['original'])
+            elif sub_list[i]['type'] == 'sum':
+                new_restriction.left[sub_list[i]['new']] = new_restriction.left[sub_list[i]['original']]
+                new_restriction.right['__CONST__'] += new_restriction.left[sub_list[i]['original']]*sub_list[i]['const']
+                new_restriction.left.pop(sub_list[i]['original'])
+            elif sub_list[i]['type'] == 'free':
+                new_restriction.left[sub_list[i]['new1']] = new_restriction.left[sub_list[i]['original']]
+                new_restriction.left[sub_list[i]['new1']] = 0 - new_restriction.left[sub_list[i]['original']]
+                new_restriction.left.pop(sub_list[i]['original'])
+
+    left = new_restriction.left
+    op = new_restriction.op
+    right = new_restriction.right
+
+    if new_restriction.right['__CONST__'] < 0:
+        for var in new_restriction.left:
+            left[var] = 0 - new_restriction.left[var]
+        
+        right['__CONST__'] = 0 - new_restriction.right['__CONST__']
+
+        if new_restriction.op == '<=':
+            op = '>='
+        elif new_restriction.op == '>=':
+            op = '<='
+
+    return ExprCoefs(left, op, right)
+
+def to_normal_form(restrictions):
+    """
+    Coloca o problema na forma normal
+
+    Args:
+        restrictions (list of ExprCoefs): lista de restricoes na forma ExprCoefs
+
+    Returns:
+        list of ExprCoefs: lista com as restricoes do problema na forma padrao
+    """
+    norm_restrictions = []
+    counter = 0
+    for restriction in restrictions:
+        left = restriction.left
+        op = restriction.op
+        right = restriction.right
+        if op == '==':
+            norm_restrictions.append(ExprCoefs(left, op, right))
+        elif op == '<=':
+            left[f'__EXTRA{counter}__'] = Fraction(1,1)
+            norm_restrictions.append(ExprCoefs(left, '==', right))
+        elif op == '>=':
+            left[f'__EXTRA{counter}__'] = Fraction(-1,1)
+            norm_restrictions.append(ExprCoefs(left, '==', right))
+        counter += 1
+    return norm_restrictions
