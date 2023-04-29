@@ -24,7 +24,9 @@ def parse(file):
 
     normal_restriction = to_normal_form(sub_restrictions)
 
-    print(normal_restriction)
+    print(sub_obj)
+    for r in normal_restriction:
+        print(r)
     return type
 
 def parse_obj(obj):

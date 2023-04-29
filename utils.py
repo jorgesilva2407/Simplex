@@ -33,6 +33,19 @@ class ExprCoefs(NamedTuple):
     op: str
     right: dict
 
+    def __str__(self) -> str:
+        exp = ''
+        left_vars = list(self.left.keys())
+        right_vars = list(self.right.keys())
+        for i in range(len(left_vars)-1):
+            exp += f'{self.left[left_vars[i]]} * {left_vars[i]} + '
+        exp += f'{self.left[left_vars[-1]]} * {left_vars[-1]}'
+        exp += ' == '
+        for i in range(len(right_vars)-1):
+            exp += f'{self.right[right_vars[i]]} * {right_vars[i]} + '
+        exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]}'
+        return exp
+
 def get_tokens(exp):
     """
     Separa uma string que representa uma expressao aritmetica linear
