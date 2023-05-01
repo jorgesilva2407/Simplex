@@ -23,7 +23,7 @@ def parse(file):
     sub_obj, sub_restrictions, new_variables, sub_rules = sub_variables(obj, restrictions, variables)
 
     print('Problem after substitution:')
-    print(sub_obj)
+    print(ExprCoefs(sub_obj, '', {}))
     for rest in sub_restrictions:
         print(rest)
 

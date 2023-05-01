@@ -1,24 +1,8 @@
 from fractions import Fraction
 from typing import NamedTuple
 import re
+import numpy as np
 from debug import *
-
-# debug = False
-
-# try:
-#     """
-#     Tenta redefinir a funcao de impressao do python para ela só funcionar quando o modo de debug estiver ativado
-
-#     Returns:
-#         function: a nova funcao de impressao que sera usada
-#     """
-#     import builtins
-#     def print(*args, **kwargs):
-#         if debug:
-#             type(__builtins__)
-#             builtins.print(*args, **kwargs)
-# except:
-#     pass
 
 class Expr(NamedTuple):
     """
@@ -82,7 +66,10 @@ class ExprCoefs(NamedTuple):
         exp += ' ' + self.op + ' '
         for i in range(len(right_vars)-1):
             exp += f'{self.right[right_vars[i]]} * {right_vars[i]} + '
-        exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]}'
+        try: 
+            exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]}'
+        except:
+            exp = 'Objetive function: ' + exp
         return exp
 
 def get_tokens(exp):

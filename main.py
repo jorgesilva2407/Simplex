@@ -1,5 +1,4 @@
 import sys
-from simplex import simplex
 import global_variables
 
 if '-d' in sys.argv:
@@ -7,5 +6,8 @@ if '-d' in sys.argv:
 else:
     global_variables.debug = False
 
+from simplex import simplex
 from parser import parse
+
+
 parse('input.txt')
