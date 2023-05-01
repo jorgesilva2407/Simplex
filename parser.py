@@ -20,7 +20,7 @@ def parse(file):
     type_obj, obj = parse_obj(lines[0])
     variables, restrictions = parse_restrictions(lines[1:])
 
-    sub_obj, sub_restrictions, new_variables, sub_rules = sub_variables(obj, restrictions, variables)
+    sub_obj, sub_restrictions, sub_rules = sub_variables(obj, restrictions, variables)
 
     print('Problem after substitution:')
     print(ExprCoefs(sub_obj, '', {}))
@@ -37,14 +37,7 @@ def parse(file):
     
     print('*'*50)
 
-    all_variables = set()
-    for rest in normal_restrictions:
-        all_variables = all_variables.union(set(rest.left.keys()))
-
-    print('Variables')
-    print(all_variables)
-
-    # A, b = to_array(sub_obj, normal_restrictions, new_variables)
+    matrix = to_array(sub_obj, normal_restrictions)
 
     return type
 

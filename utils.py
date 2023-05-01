@@ -3,6 +3,7 @@ from typing import NamedTuple
 import re
 import numpy as np
 from debug import *
+np.set_printoptions(precision=2, linewidth=200)
 
 class Expr(NamedTuple):
     """
@@ -387,12 +388,7 @@ def sub_variables(obj, restrictions, variables):
     new_obj = sub_vars_obj(obj, sub_list)
     new_restrictions = [sub_vars_restriction(restriction, sub_list) for restriction in valid_restrictions]
 
-    #* encontra o novo conjunto de variaveis
-    new_variables = set(new_obj.keys())
-    for restriction in new_restrictions:
-        new_variables.union(restriction.left.keys())
-
-    return new_obj, new_restrictions, new_variables, sub_list
+    return new_obj, new_restrictions, sub_list
 
 def sub_vars_obj(obj, sub_list):
     """
@@ -495,4 +491,39 @@ def to_normal_form(restrictions):
         counter += 1
     return norm_restrictions
 
-def to_array()
+def to_array(obj, restrictions):
+    variables = set()
+    for rest in restrictions:
+        variables = variables.union(set(rest.left.keys()))
+    variables = sorted(list(variables))
+
+    print('Variables:')
+    print(variables)
+
+    line_obj = np.zeros(len(variables) + 1)
+    for i in range(len(variables)):
+        if variables[i] in obj:
+            line_obj[i] = obj[variables[i]]
+
+    if '__ONE__' in obj:
+        line_obj[-1] = obj['__ONE__']
+
+    print(line_obj)
+
+    A = np.zeros((len(restrictions),len(variables)+1))
+    for i in range(len(restrictions)):
+        if '__ONE__' in restrictions[i].right:
+            A[i,-1] = restrictions[i].right['__ONE__']
+        
+        for j in range(len(variables)):
+            if variables[j] in restrictions[i].left:
+                A[i,j] = restrictions[i].left[variables[j]]
+    
+    fmt = '%-10s '*(len(variables) + 1)
+    print(fmt % tuple(variables + ['B']))
+    print(fmt % tuple(['-'*10 for i in range(len(variables)+1)]))
+    print(fmt % tuple(line_obj))
+    for row in A:
+        print(fmt % tuple(row))
+
+    return None
