@@ -62,13 +62,13 @@ class ExprCoefs(NamedTuple):
         left_vars = list(self.left.keys())
         right_vars = list(self.right.keys())
         for i in range(len(left_vars)-1):
-            exp += f'{self.left[left_vars[i]]} * {left_vars[i]} + '
-        exp += f'{self.left[left_vars[-1]]} * {left_vars[-1]}'
+            exp += f'{self.left[left_vars[i]]} * {left_vars[i]:15} + '
+        exp += f'{self.left[left_vars[-1]]} * {left_vars[-1]:15}'
         exp += ' ' + self.op + ' '
         for i in range(len(right_vars)-1):
-            exp += f'{self.right[right_vars[i]]} * {right_vars[i]} + '
+            exp += f'{self.right[right_vars[i]]} * {right_vars[i]:15} + '
         try: 
-            exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]}'
+            exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]:15}'
         except:
             exp = 'Objetive function: ' + exp
         return exp
@@ -376,13 +376,13 @@ def sub_variables(obj, restrictions, variables):
     for rest in valid_restrictions:
         print(rest[1])
 
-    print('*'*50)
+    print('*'*150)
 
     print('Substitutions:')
     for sub in sub_list:
         print(sub)
     
-    print('*'*50)
+    print('*'*150)
 
     #* faz as substituicoes
     new_obj = sub_vars_obj(obj, sub_list)
@@ -492,6 +492,16 @@ def to_normal_form(restrictions):
     return norm_restrictions
 
 def to_array(obj, restrictions):
+    """
+    Gera a matriz que sera usada na execucao do simplex
+
+    Args:
+        obj (dict): a funcao objetivo na forma de um dicionario
+        restrictions (list of ExprCoefs): a as restricoes do problema na forma ExprCoefs
+
+    Returns:
+        np.array: a matriz que sera usada no simplex
+    """
     variables = set()
     for rest in restrictions:
         variables = variables.union(set(rest.left.keys()))
@@ -500,15 +510,19 @@ def to_array(obj, restrictions):
     print('Variables:')
     print(variables)
 
+    print('*'*150)
+
     line_obj = np.zeros(len(variables) + 1)
     for i in range(len(variables)):
         if variables[i] in obj:
             line_obj[i] = obj[variables[i]]
 
+    aux = np.zeros(len(variables) + len(restrictions) + 1)
+    aux[len(restrictions):] = line_obj
+    line_obj = aux
+
     if '__ONE__' in obj:
         line_obj[-1] = obj['__ONE__']
-
-    print(line_obj)
 
     A = np.zeros((len(restrictions),len(variables)+1))
     for i in range(len(restrictions)):
@@ -519,11 +533,19 @@ def to_array(obj, restrictions):
             if variables[j] in restrictions[i].left:
                 A[i,j] = restrictions[i].left[variables[j]]
     
-    fmt = '%-10s '*(len(variables) + 1)
-    print(fmt % tuple(variables + ['B']))
-    print(fmt % tuple(['-'*10 for i in range(len(variables)+1)]))
+    eye = np.eye(len(restrictions))
+
+    A = np.concatenate((eye,A),axis=1)
+    print(A.shape)
+
+    print('Matrix')
+    fmt = '%-10s '*(len(variables) + 1 + len(restrictions))
+    print(fmt % tuple(['CERT']*len(restrictions) + variables + ['B']))
+    print(fmt % tuple(['-'*10 for i in range(len(variables) + 1 + len(restrictions))]))
     print(fmt % tuple(line_obj))
     for row in A:
-        print(fmt % tuple(row))
+        print(fmt % tuple(np.round(row.copy(), decimals=3)))
 
-    return None
+    matrix = np.concatenate((line_obj.reshape(1,len(restrictions)+len(variables)+1),A), axis=0)
+
+    return matrix

@@ -27,7 +27,7 @@ def parse(file):
     for rest in sub_restrictions:
         print(rest)
 
-    print('*'*50)
+    print('*'*150)
 
     normal_restrictions = to_normal_form(sub_restrictions)
 
@@ -35,7 +35,7 @@ def parse(file):
     for rest in normal_restrictions:
         print(rest)
     
-    print('*'*50)
+    print('*'*150)
 
     matrix = to_array(sub_obj, normal_restrictions)
 
@@ -109,7 +109,7 @@ def parse_restrictions(restrictions):
     for rest in ste_exprs:
         print(rest)
 
-    print('*'*50)
+    print('*'*150)
 
     coefs = [ExprCoefs(get_coeficients(expr.left), expr.op, get_coeficients(expr.right)) for expr in ste_exprs]
 
@@ -117,7 +117,7 @@ def parse_restrictions(restrictions):
     for exp in coefs:
         print(exp)
 
-    print('*'*50)
+    print('*'*150)
 
     simp_coefs = [simplify(exp) for exp in coefs]
 
@@ -125,6 +125,6 @@ def parse_restrictions(restrictions):
     for exp in simp_coefs:
         print(exp)
 
-    print('*'*50)
+    print('*'*150)
 
     return variables, simp_coefs
