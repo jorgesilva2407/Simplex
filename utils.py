@@ -1,6 +1,24 @@
 from fractions import Fraction
 from typing import NamedTuple
 import re
+from debug import *
+
+# debug = False
+
+# try:
+#     """
+#     Tenta redefinir a funcao de impressao do python para ela só funcionar quando o modo de debug estiver ativado
+
+#     Returns:
+#         function: a nova funcao de impressao que sera usada
+#     """
+#     import builtins
+#     def print(*args, **kwargs):
+#         if debug:
+#             type(__builtins__)
+#             builtins.print(*args, **kwargs)
+# except:
+#     pass
 
 class Expr(NamedTuple):
     """
@@ -18,6 +36,21 @@ class Expr(NamedTuple):
     left: list
     op: str
     right: list
+
+    def __str__(self) -> str:
+        """
+        Transforma o objeto Expr em uma string
+
+        Returns:
+            str: string que descreve o objeto Expr
+        """
+        exp = ''
+        for token in self.left:
+            exp += token + ' '
+        exp += self.op + ' '
+        for token in self.right:
+            exp += token + ' '
+        return exp
 
 class ExprCoefs(NamedTuple):
     """
@@ -46,7 +79,7 @@ class ExprCoefs(NamedTuple):
         for i in range(len(left_vars)-1):
             exp += f'{self.left[left_vars[i]]} * {left_vars[i]} + '
         exp += f'{self.left[left_vars[-1]]} * {left_vars[-1]}'
-        exp += ' == '
+        exp += ' ' + self.op + ' '
         for i in range(len(right_vars)-1):
             exp += f'{self.right[right_vars[i]]} * {right_vars[i]} + '
         exp += f'{self.right[right_vars[-1]]} * {right_vars[-1]}'
@@ -175,15 +208,15 @@ def make_association(norm_exp):
         dict: dicionario em que as chaves sao variaveis da expressao e os valores sao as constantes associadas a cada variavel
     """
     coefs = {variable: Fraction(0,1) for variable in get_variables(norm_exp)}
-    coefs['__CONST__'] = 0
-    var = '__CONST__'
+    coefs['__ONE__'] = 0
+    var = '__ONE__'
     val = Fraction(1,1)
     i = 0
     
     while i < len(norm_exp):
         if norm_exp[i] == '+':
             coefs[var] = val
-            var = '__CONST__'
+            var = '__ONE__'
             val = Fraction(1,1)
             i += 1
             continue
@@ -240,20 +273,20 @@ def simplify(expr):
     op = expr.op
     right =  expr.right
     
-    right['__CONST__'] -= left['__CONST__']
-    left.pop('__CONST__')
+    right['__ONE__'] -= left['__ONE__']
+    left.pop('__ONE__')
     
     for var in right:
-        if var == '__CONST__':
+        if var == '__ONE__':
             continue
         elif var in left:
             left[var] -= right[var]
         else:
-            left[var] = right[var]
+            left[var] = 0 - right[var]
 
-    right = {const: right['__CONST__'] for const in right if const == '__CONST__'}
+    right = {const: right['__ONE__'] for const in right if const == '__ONE__'}
 
-    if right['__CONST__'] < Fraction(0,1):
+    if right['__ONE__'] < Fraction(0,1):
         if op == '<=':
             op = '>='
         elif op == '>=':
@@ -262,9 +295,8 @@ def simplify(expr):
         for var in left:
             left[var] = 0 - left[var]
         
-        right['__CONST__'] = 0 - right['__CONST__']
+        right['__ONE__'] = 0 - right['__ONE__']
     
-    # print(left, op, right)
     return ExprCoefs(left, op, right)
 
 
@@ -293,7 +325,7 @@ def sub_variables(obj, restrictions, variables):
     
     #* junta as variaveis da funcao objetivo as das restricoes
     all_vars = set(obj.keys()).union(variables)
-    all_vars.discard('__CONST__')
+    all_vars.discard('__ONE__')
 
     sub_list = []
     keep_restriction = []
@@ -302,7 +334,7 @@ def sub_variables(obj, restrictions, variables):
     for restriction in variables_domain:
         var = list(restriction[1].left.keys())[0]
         op = restriction[1].op
-        const = restriction[1].right['__CONST__']/restriction[1].left[var]
+        const = restriction[1].right['__ONE__']/restriction[1].left[var]
         
         if const < 0:
             const = 0 - const
@@ -352,6 +384,18 @@ def sub_variables(obj, restrictions, variables):
     for i in keep_restriction:
         valid_restrictions.append((i, restrictions[i]))
 
+    print('Valid Restrictions:')
+    for rest in valid_restrictions:
+        print(rest[1])
+
+    print('*'*50)
+
+    print('Substitutions:')
+    for sub in sub_list:
+        print(sub)
+    
+    print('*'*50)
+
     #* faz as substituicoes
     new_obj = sub_vars_obj(obj, sub_list)
     new_restrictions = [sub_vars_restriction(restriction, sub_list) for restriction in valid_restrictions]
@@ -381,10 +425,10 @@ def sub_vars_obj(obj, sub_list):
                 obj.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'sum':
                 obj[sub_list[i]['new']] = obj[sub_list[i]['original']]
-                if '__CONST__' in obj:
-                    obj['__CONST__'] -= obj[sub_list[i]['original']]*sub_list[i]['const']
+                if '__ONE__' in obj:
+                    obj['__ONE__'] -= obj[sub_list[i]['original']]*sub_list[i]['const']
                 else:
-                    obj['__CONST__'] = 0 - obj[sub_list[i]['original']]*sub_list[i]['const']
+                    obj['__ONE__'] = 0 - obj[sub_list[i]['original']]*sub_list[i]['const']
                 obj.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'free':
                 obj[sub_list[i]['new1']] = obj[sub_list[i]['original']]
@@ -413,7 +457,7 @@ def sub_vars_restriction(restriction, sub_list):
                 new_restriction.left.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'sum':
                 new_restriction.left[sub_list[i]['new']] = new_restriction.left[sub_list[i]['original']]
-                new_restriction.right['__CONST__'] += new_restriction.left[sub_list[i]['original']]*sub_list[i]['const']
+                new_restriction.right['__ONE__'] += new_restriction.left[sub_list[i]['original']]*sub_list[i]['const']
                 new_restriction.left.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'free':
                 new_restriction.left[sub_list[i]['new1']] = new_restriction.left[sub_list[i]['original']]
@@ -424,11 +468,11 @@ def sub_vars_restriction(restriction, sub_list):
     op = new_restriction.op
     right = new_restriction.right
 
-    if new_restriction.right['__CONST__'] < 0:
+    if new_restriction.right['__ONE__'] < 0:
         for var in new_restriction.left:
             left[var] = 0 - new_restriction.left[var]
         
-        right['__CONST__'] = 0 - new_restriction.right['__CONST__']
+        right['__ONE__'] = 0 - new_restriction.right['__ONE__']
 
         if new_restriction.op == '<=':
             op = '>='

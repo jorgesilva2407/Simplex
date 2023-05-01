@@ -22,11 +22,24 @@ def parse(file):
 
     sub_obj, sub_restrictions, new_variables, sub_rules = sub_variables(obj, restrictions, variables)
 
+    print('Problem after substitution:')
+    print(sub_obj)
+    for rest in sub_restrictions:
+        print(rest)
+
+    print('*'*50)
+
     normal_restriction = to_normal_form(sub_restrictions)
 
-    print(sub_obj)
-    for r in normal_restriction:
-        print(r)
+    print('Restrictions in normal form:')
+    for rest in normal_restriction:
+        print(rest)
+    
+    print('*'*50)
+
+    print('New variables:')
+    print(new_variables)
+
     return type
 
 def parse_obj(obj):
@@ -72,7 +85,7 @@ def parse_restrictions(restrictions):
         elif '>=' in restriction:
             #* A restricao x1 + x2 >= x3 eh equivalente a x3 <= x1 + x2
             left, right = restriction.strip().split(sep='>=')
-            ste_exprs += [Expr(get_tokens(right), '>=', get_tokens(left))]
+            ste_exprs += [Expr(get_tokens(left), '>=', get_tokens(right))]
         
         elif '<=' in restriction:
             #* A restricao x1 + x2 <= x3 eh representada por ela propria no contexto em questao
@@ -93,6 +106,26 @@ def parse_restrictions(restrictions):
         variables = variables.union(get_variables(expr.left))
         variables = variables.union(get_variables(expr.right))
 
-    coefs = [simplify(ExprCoefs(get_coeficients(expr.left), expr.op, get_coeficients(expr.right))) for expr in ste_exprs]
+    print('Restrictions in Expr form:')
+    for rest in ste_exprs:
+        print(rest)
 
-    return variables, coefs
+    print('*'*50)
+
+    coefs = [ExprCoefs(get_coeficients(expr.left), expr.op, get_coeficients(expr.right)) for expr in ste_exprs]
+
+    print('Restrictions in ExprCoefs form:')
+    for exp in coefs:
+        print(exp)
+
+    print('*'*50)
+
+    simp_coefs = [simplify(exp) for exp in coefs]
+
+    print('Simplified Restrictions:')
+    for exp in simp_coefs:
+        print(exp)
+
+    print('*'*50)
+
+    return variables, simp_coefs
