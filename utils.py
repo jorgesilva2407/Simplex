@@ -494,3 +494,5 @@ def to_normal_form(restrictions):
             norm_restrictions.append(ExprCoefs(left, '==', right))
         counter += 1
     return norm_restrictions
+
+def to_array()

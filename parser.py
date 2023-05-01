@@ -29,16 +29,22 @@ def parse(file):
 
     print('*'*50)
 
-    normal_restriction = to_normal_form(sub_restrictions)
+    normal_restrictions = to_normal_form(sub_restrictions)
 
     print('Restrictions in normal form:')
-    for rest in normal_restriction:
+    for rest in normal_restrictions:
         print(rest)
     
     print('*'*50)
 
-    print('New variables:')
-    print(new_variables)
+    all_variables = set()
+    for rest in normal_restrictions:
+        all_variables = all_variables.union(set(rest.left.keys()))
+
+    print('Variables')
+    print(all_variables)
+
+    # A, b = to_array(sub_obj, normal_restrictions, new_variables)
 
     return type
 
