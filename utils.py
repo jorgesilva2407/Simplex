@@ -444,7 +444,7 @@ def sub_vars_restriction(restriction, sub_list):
                 new_restriction.left.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'free':
                 new_restriction.left[sub_list[i]['new1']] = new_restriction.left[sub_list[i]['original']]
-                new_restriction.left[sub_list[i]['new1']] = 0 - new_restriction.left[sub_list[i]['original']]
+                new_restriction.left[sub_list[i]['new2']] = 0 - new_restriction.left[sub_list[i]['original']]
                 new_restriction.left.pop(sub_list[i]['original'])
 
     left = new_restriction.left
@@ -483,35 +483,26 @@ def to_normal_form(restrictions):
         if op == '==':
             norm_restrictions.append(ExprCoefs(left, op, right))
         elif op == '<=':
-            left[f'__EXTRA{counter}__'] = Fraction(1,1)
+            left[f'__SLACK{counter}__'] = Fraction(1,1)
             norm_restrictions.append(ExprCoefs(left, '==', right))
         elif op == '>=':
-            left[f'__EXTRA{counter}__'] = Fraction(-1,1)
+            left[f'__SLACK{counter}__'] = Fraction(-1,1)
             norm_restrictions.append(ExprCoefs(left, '==', right))
         counter += 1
     return norm_restrictions
 
-def to_array(obj, restrictions):
+def to_array(obj, restrictions, variables):
     """
     Gera a matriz que sera usada na execucao do simplex
 
     Args:
         obj (dict): a funcao objetivo na forma de um dicionario
         restrictions (list of ExprCoefs): a as restricoes do problema na forma ExprCoefs
+        list: lista que contem as variaveis do problema
 
     Returns:
         np.array: a matriz que sera usada no simplex
     """
-    variables = set()
-    for rest in restrictions:
-        variables = variables.union(set(rest.left.keys()))
-    variables = sorted(list(variables))
-
-    print('Variables:')
-    print(variables)
-
-    print('*'*150)
-
     line_obj = np.zeros(len(variables) + 1)
     for i in range(len(variables)):
         if variables[i] in obj:
@@ -536,13 +527,13 @@ def to_array(obj, restrictions):
     eye = np.eye(len(restrictions))
 
     A = np.concatenate((eye,A),axis=1)
-    print(A.shape)
 
     print('Matrix')
-    fmt = '%-10s '*(len(variables) + 1 + len(restrictions))
+    fmt = '%-11s '*(len(variables) + 1 + len(restrictions))
     print(fmt % tuple(['CERT']*len(restrictions) + variables + ['B']))
-    print(fmt % tuple(['-'*10 for i in range(len(variables) + 1 + len(restrictions))]))
+    print(fmt % tuple(['-'*11 for i in range(len(variables) + 1 + len(restrictions))]))
     print(fmt % tuple(line_obj))
+    print('-'*100)
     for row in A:
         print(fmt % tuple(np.round(row.copy(), decimals=3)))
 

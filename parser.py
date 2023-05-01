@@ -37,9 +37,19 @@ def parse(file):
     
     print('*'*150)
 
-    matrix = to_array(sub_obj, normal_restrictions)
+    all_variables = set()
+    for rest in normal_restrictions:
+        all_variables = all_variables.union(set(rest.left.keys()))
+    all_variables = sorted(list(all_variables))
 
-    return type
+    print('Variables:')
+    print(all_variables)
+
+    print('*'*150)
+
+    matrix = to_array(sub_obj, normal_restrictions, all_variables)
+
+    return matrix, sub_rules, all_variables, type_obj
 
 def parse_obj(obj):
     """
