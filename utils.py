@@ -503,19 +503,19 @@ def to_array(obj, restrictions, variables):
     Returns:
         np.array: a matriz que sera usada no simplex
     """
-    line_obj = np.zeros(len(variables) + 1)
+    line_obj = np.zeros(len(variables) + 1, dtype=np.object_)
     for i in range(len(variables)):
         if variables[i] in obj:
             line_obj[i] = obj[variables[i]]
 
-    aux = np.zeros(len(variables) + len(restrictions) + 1)
+    aux = np.zeros(len(variables) + len(restrictions) + 1, dtype=np.object_)
     aux[len(restrictions):] = line_obj
     line_obj = aux
 
     if '__ONE__' in obj:
         line_obj[-1] = obj['__ONE__']
 
-    A = np.zeros((len(restrictions),len(variables)+1))
+    A = np.zeros((len(restrictions),len(variables)+1), dtype=np.object_)
     for i in range(len(restrictions)):
         if '__ONE__' in restrictions[i].right:
             A[i,-1] = restrictions[i].right['__ONE__']
@@ -535,8 +535,13 @@ def to_array(obj, restrictions, variables):
     print(fmt % tuple(line_obj))
     print('-'*100)
     for row in A:
-        print(fmt % tuple(np.round(row.copy(), decimals=3)))
+        print(fmt % tuple(row.copy()))
 
     matrix = np.concatenate((line_obj.reshape(1,len(restrictions)+len(variables)+1),A), axis=0)
+
+    rows, cols = matrix.shape
+    for i in range(rows):
+        for j in range(cols):
+            matrix[i,j] = Fraction(matrix[i,j])
 
     return matrix
