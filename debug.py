@@ -1,5 +1,4 @@
-# debug = True
-from global_variables import debug
+import sys
 
 try:
     """
@@ -10,7 +9,7 @@ try:
     """
     import builtins
     def print(*args, **kwargs):
-        if debug:
+        if '-d' in sys.argv:
             type(__builtins__)
             builtins.print(*args, **kwargs)
 except:

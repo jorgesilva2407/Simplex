@@ -337,14 +337,8 @@ def sub_variables(obj, restrictions, variables):
         #* var menor ou igual a zero
         elif op == '<=' and const == Fraction(0,1):
             sub_list.append({'original': var, 
-                             'new': '__INV__' + var,
+                             'new': var+'__INV__',
                              'type': 'inv'})
-        #* var limitada inferiormente 
-        elif op == '>=' and const > Fraction(0,1):
-            sub_list.append({'original': var, 
-                             'new': '__SUM__' + var,
-                             'type': 'sum',
-                             'const': const})
         #* var limitada superiormente eh tratada como retricao do problema
         elif op == '<=' and const > Fraction(0,1):
             keep_restriction.append(restriction[0])
@@ -364,8 +358,8 @@ def sub_variables(obj, restrictions, variables):
     #* define como serao feitas as substituicoes de variaveis livres
     for var in free_vars:
         sub_list.append({'original': var,
-                         'new1': '__FREE1__'+var,
-                         'new2': '__FREE2__'+var,
+                         'new1': var+'__FREE1__',
+                         'new2': var+'__FREE2__',
                          'type': 'free'})
 
     #* mantem certos indicadores de dominio como se fossem restricoes
@@ -406,13 +400,6 @@ def sub_vars_obj(obj, sub_list):
             if sub_list[i]['type'] == 'inv':
                 obj[sub_list[i]['new']] = (0 - obj[sub_list[i]['original']])
                 obj.pop(sub_list[i]['original'])
-            elif sub_list[i]['type'] == 'sum':
-                obj[sub_list[i]['new']] = obj[sub_list[i]['original']]
-                if '__ONE__' in obj:
-                    obj['__ONE__'] -= obj[sub_list[i]['original']]*sub_list[i]['const']
-                else:
-                    obj['__ONE__'] = 0 - obj[sub_list[i]['original']]*sub_list[i]['const']
-                obj.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'free':
                 obj[sub_list[i]['new1']] = obj[sub_list[i]['original']]
                 obj[sub_list[i]['new2']] = 0 - obj[sub_list[i]['original']]
@@ -437,10 +424,6 @@ def sub_vars_restriction(restriction, sub_list):
         if sub_list[i]['original'] in new_restriction.left:
             if sub_list[i]['type'] == 'inv':
                 new_restriction.left[sub_list[i]['new']] = (0 - new_restriction.left[sub_list[i]['original']])
-                new_restriction.left.pop(sub_list[i]['original'])
-            elif sub_list[i]['type'] == 'sum':
-                new_restriction.left[sub_list[i]['new']] = new_restriction.left[sub_list[i]['original']]
-                new_restriction.right['__ONE__'] += new_restriction.left[sub_list[i]['original']]*sub_list[i]['const']
                 new_restriction.left.pop(sub_list[i]['original'])
             elif sub_list[i]['type'] == 'free':
                 new_restriction.left[sub_list[i]['new1']] = new_restriction.left[sub_list[i]['original']]
@@ -503,45 +486,29 @@ def to_array(obj, restrictions, variables):
     Returns:
         np.array: a matriz que sera usada no simplex
     """
-    line_obj = np.zeros(len(variables) + 1, dtype=np.object_)
+    line_obj = np.zeros(len(variables), dtype=np.object_)
     for i in range(len(variables)):
         if variables[i] in obj:
             line_obj[i] = obj[variables[i]]
+        line_obj[i] = Fraction(line_obj[i])
 
-    aux = np.zeros(len(variables) + len(restrictions) + 1, dtype=np.object_)
-    aux[len(restrictions):] = line_obj
-    line_obj = aux
-
-    if '__ONE__' in obj:
-        line_obj[-1] = obj['__ONE__']
-
-    A = np.zeros((len(restrictions),len(variables)+1), dtype=np.object_)
+    A = np.zeros((len(restrictions),len(variables)), dtype=np.object_)
+    B = np.zeros((len(restrictions),1), dtype=np.object_)
     for i in range(len(restrictions)):
         if '__ONE__' in restrictions[i].right:
-            A[i,-1] = restrictions[i].right['__ONE__']
+            B[i,0] = restrictions[i].right['__ONE__']
         
         for j in range(len(variables)):
             if variables[j] in restrictions[i].left:
                 A[i,j] = restrictions[i].left[variables[j]]
     
-    eye = np.eye(len(restrictions))
+    fmt = '%-12s'*(len(variables)) + ' | ' + '%11s'
+    print(fmt % tuple(variables + ['B']))
+    print('-'*150)
+    print(fmt % tuple(list(line_obj) + [0]))
+    for i in range(len(restrictions)):
+        print(fmt % tuple(list(A[i,:]) + [B[i,0]]))
 
-    A = np.concatenate((eye,A),axis=1)
+    print('*'*150)
 
-    print('Matrix')
-    fmt = '%-11s '*(len(variables) + 1 + len(restrictions))
-    print(fmt % tuple(['CERT']*len(restrictions) + variables + ['B']))
-    print(fmt % tuple(['-'*11 for i in range(len(variables) + 1 + len(restrictions))]))
-    print(fmt % tuple(line_obj))
-    print('-'*100)
-    for row in A:
-        print(fmt % tuple(row.copy()))
-
-    matrix = np.concatenate((line_obj.reshape(1,len(restrictions)+len(variables)+1),A), axis=0)
-
-    rows, cols = matrix.shape
-    for i in range(rows):
-        for j in range(cols):
-            matrix[i,j] = Fraction(matrix[i,j])
-
-    return matrix
+    return A, B, line_obj
