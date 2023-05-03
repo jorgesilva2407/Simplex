@@ -48,6 +48,8 @@ def simplex(matrices, phase=1):
             base[i] = n_rest+n_var+i
         
         while True:
+            if print_iter.counter == 11:
+                None
             indexes = np.where(aux_obj[0, n_rest:n_rest+n_var] < 0)[0]
             if indexes.size == 0:
                 break
@@ -60,13 +62,14 @@ def simplex(matrices, phase=1):
                         continue
                     elif aux[line,col] == 0:
                         line = j
-                    elif aux[j,-1]/aux[j,col] < aux[line,-1]/aux[line,col]:
+                    elif aux[j,-1]/aux[j,col] < aux[line,-1]/aux[line,col] and aux[j,-1]/aux[j,col] > 0:
                         line = j
                 if aux[line,col] == 0:
                     continue
                 elif aux[line,-1]/aux[line,col] <= 0:
                     continue
                 did_something = True
+                print([idx+n_rest for idx in indexes])
                 print('old base: ',base)
                 base[line] = col
                 print('new base: ',base)
