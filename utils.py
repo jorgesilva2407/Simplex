@@ -349,7 +349,7 @@ def sub_variables(obj, restrictions, variables):
         is_free = True
         
         for va_d in variables_domain:
-            if var in va_d[1].left:
+            if var in va_d[1].left and va_d[1].op == '>=' and va_d[1].right['__ONE__'] == 0:
                 is_free = False
         
         if is_free:
@@ -501,6 +501,7 @@ def to_array(obj, restrictions, variables):
         for j in range(len(variables)):
             if variables[j] in restrictions[i].left:
                 A[i,j] = restrictions[i].left[variables[j]]
+            A[i,j] = Fraction(A[i,j])
     
     fmt = '%-12s'*(len(variables)) + ' | ' + '%11s'
     print(fmt % tuple(variables + ['B']))
@@ -512,3 +513,20 @@ def to_array(obj, restrictions, variables):
     print('*'*150)
 
     return A, B, line_obj
+
+def print_iter(n_var, n_rest, obj, aux, matrix):
+    print_iter.counter += 1
+    print(f'Iteration number: {print_iter.counter}')
+    fmt = '%-6s'*n_rest + ' | ' + '%-6s'*n_var + ' | ' + '%-6s'*n_rest + ' | ' + '%-6s'
+    print(fmt % tuple(['EXT']*n_rest + [f'KEY{i}' for i in range(n_var)] + ['U']*n_rest + ['B']))
+    # fmt = '%-6.2f'*n_rest + ' | ' + '%-6.2f'*n_var + ' | ' + '%-6.2f'*n_rest + ' | ' + '%-6.2f'
+    print('-'*150)
+    print(fmt % tuple(obj[0,:]))
+    print('-'*150)
+    print(fmt % tuple(aux[0,:]))
+    print('-'*150)
+    for i in range(n_rest):
+        print(fmt % tuple(list(matrix[i,:])))
+    print('*'*150)
+
+print_iter.counter = 0

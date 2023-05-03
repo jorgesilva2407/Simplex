@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["${workspaceFolder}/input/input.txt", "-d"],
+            "args": ["${workspaceFolder}/input/input3.txt", "-d"],
             "justMyCode": true
         }
     ]
