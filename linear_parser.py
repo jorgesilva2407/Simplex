@@ -42,7 +42,7 @@ def parse(file):
         all_variables = all_variables.union(set(rest.left.keys()))
 
     all_variables = all_variables.union(sub_obj.keys())
-    all_variables.discard('__ONE__')
+    all_variables.discard('ONE')
     all_variables = sorted(list(all_variables))
 
     print('Variables:')
@@ -88,19 +88,15 @@ def parse_restrictions(restrictions):
 
     for restriction in restrictions:
         if '==' in restriction:
-            #* Exemplo: A restricao x1 + x2 = x3 eh equivalente a x1 + x2 <= x3 e x1 + x2 >= x3, e a segunda destas eh equivalente a x3 <= x1 + x2
             left, right = restriction.strip().split(sep='==')
             left, right = get_tokens(left), get_tokens(right)
-            ste_exprs += [Expr(left, '<=', right)]
-            ste_exprs += [Expr(left, '>=', right)]
+            ste_exprs += [Expr(left, '==', right)]
         
         elif '>=' in restriction:
-            #* A restricao x1 + x2 >= x3 eh equivalente a x3 <= x1 + x2
             left, right = restriction.strip().split(sep='>=')
             ste_exprs += [Expr(get_tokens(left), '>=', get_tokens(right))]
         
         elif '<=' in restriction:
-            #* A restricao x1 + x2 <= x3 eh representada por ela propria no contexto em questao
             left, right = restriction.strip().split(sep='<=')
             ste_exprs += [Expr(get_tokens(left), '<=', get_tokens(right))]
         

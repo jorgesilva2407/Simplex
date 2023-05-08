@@ -86,6 +86,8 @@ def get_tokens(exp):
     """
     normalized_exp = re.sub('(MAX)|(MIN)|( )','',exp)
     funcs = [
+        lambda x: re.sub('\(', '', x),
+        lambda x: re.sub('\)', '', x),
         lambda x: re.sub('\+', ' + ', x),
         lambda x: re.sub('-', ' - ', x),
         lambda x: re.sub('\*', ' * ', x),
@@ -196,15 +198,20 @@ def make_association(norm_exp):
         dict: dicionario em que as chaves sao variaveis da expressao e os valores sao as constantes associadas a cada variavel
     """
     coefs = {variable: Fraction(0,1) for variable in get_variables(norm_exp)}
-    coefs['__ONE__'] = 0
-    var = '__ONE__'
+    coefs['ONE'] = 0
+    var = 'ONE'
     val = Fraction(1,1)
     i = 0
+    if norm_exp[0] == '+':
+        norm_exp = norm_exp[1:]
     
     while i < len(norm_exp):
         if norm_exp[i] == '+':
-            coefs[var] = val
-            var = '__ONE__'
+            if var in coefs:
+                coefs[var] += val
+            else:
+                coefs[var] = val
+            var = 'ONE'
             val = Fraction(1,1)
             i += 1
             continue
@@ -219,7 +226,10 @@ def make_association(norm_exp):
 
         i += 1
     
-    coefs[var] = val
+    if var in coefs:
+        coefs[var] += val
+    else:
+        coefs[var] = val
 
     return coefs
 
@@ -261,20 +271,20 @@ def simplify(expr):
     op = expr.op
     right =  expr.right
     
-    right['__ONE__'] -= left['__ONE__']
-    left.pop('__ONE__')
+    right['ONE'] -= left['ONE']
+    left.pop('ONE')
     
     for var in right:
-        if var == '__ONE__':
+        if var == 'ONE':
             continue
         elif var in left:
             left[var] -= right[var]
         else:
             left[var] = 0 - right[var]
 
-    right = {const: right['__ONE__'] for const in right if const == '__ONE__'}
+    right = {const: right['ONE'] for const in right if const == 'ONE'}
 
-    if right['__ONE__'] < Fraction(0,1):
+    if right['ONE'] < Fraction(0,1):
         if op == '<=':
             op = '>='
         elif op == '>=':
@@ -283,7 +293,7 @@ def simplify(expr):
         for var in left:
             left[var] = 0 - left[var]
         
-        right['__ONE__'] = 0 - right['__ONE__']
+        right['ONE'] = 0 - right['ONE']
     
     return ExprCoefs(left, op, right)
 
@@ -313,7 +323,7 @@ def sub_variables(obj, restrictions, variables):
     
     #* junta as variaveis da funcao objetivo as das restricoes
     all_vars = set(obj.keys()).union(variables)
-    all_vars.discard('__ONE__')
+    all_vars.discard('ONE')
 
     sub_list = []
     keep_restriction = []
@@ -322,7 +332,7 @@ def sub_variables(obj, restrictions, variables):
     for restriction in variables_domain:
         var = list(restriction[1].left.keys())[0]
         op = restriction[1].op
-        const = restriction[1].right['__ONE__']/restriction[1].left[var]
+        const = restriction[1].right['ONE']/restriction[1].left[var]
         
         if const < 0:
             const = 0 - const
@@ -334,22 +344,17 @@ def sub_variables(obj, restrictions, variables):
         #* var na forma ideal
         if op == '>=' and const == Fraction(0,1):
             continue
-        #* var menor ou igual a zero
-        elif op == '<=' and const == Fraction(0,1):
-            sub_list.append({'original': var, 
-                             'new': var+'__INV__',
-                             'type': 'inv'})
-        #* var limitada superiormente eh tratada como retricao do problema
-        elif op == '<=' and const > Fraction(0,1):
+        #* var em qualquer outro formato
+        else:
             keep_restriction.append(restriction[0])
-
+        
     #* encontra variaveis livres do programa
     free_vars = []
     for var in all_vars:
         is_free = True
         
         for va_d in variables_domain:
-            if var in va_d[1].left and va_d[1].op == '>=' and va_d[1].right['__ONE__'] == 0:
+            if var in va_d[1].left and va_d[1].op == '>=' and va_d[1].right['ONE'] == 0:
                 is_free = False
         
         if is_free:
@@ -358,8 +363,8 @@ def sub_variables(obj, restrictions, variables):
     #* define como serao feitas as substituicoes de variaveis livres
     for var in free_vars:
         sub_list.append({'original': var,
-                         'new1': var+'__FREE1__',
-                         'new2': var+'__FREE2__',
+                         'new1': 'free_'+var+'_1',
+                         'new2': 'free_'+var+'_2',
                          'type': 'free'})
 
     #* mantem certos indicadores de dominio como se fossem restricoes
@@ -397,10 +402,7 @@ def sub_vars_obj(obj, sub_list):
     """
     for i in range(len(sub_list)):
         if sub_list[i]['original'] in obj:
-            if sub_list[i]['type'] == 'inv':
-                obj[sub_list[i]['new']] = (0 - obj[sub_list[i]['original']])
-                obj.pop(sub_list[i]['original'])
-            elif sub_list[i]['type'] == 'free':
+            if sub_list[i]['type'] == 'free':
                 obj[sub_list[i]['new1']] = obj[sub_list[i]['original']]
                 obj[sub_list[i]['new2']] = 0 - obj[sub_list[i]['original']]
                 obj.pop(sub_list[i]['original'])
@@ -422,10 +424,10 @@ def sub_vars_restriction(restriction, sub_list):
     
     for i in range(len(sub_list)):
         if sub_list[i]['original'] in new_restriction.left:
-            if sub_list[i]['type'] == 'inv':
-                new_restriction.left[sub_list[i]['new']] = (0 - new_restriction.left[sub_list[i]['original']])
-                new_restriction.left.pop(sub_list[i]['original'])
-            elif sub_list[i]['type'] == 'free':
+            # if sub_list[i]['type'] == 'inv':
+            #     new_restriction.left[sub_list[i]['new']] = (0 - new_restriction.left[sub_list[i]['original']])
+            #     new_restriction.left.pop(sub_list[i]['original'])
+            if sub_list[i]['type'] == 'free':
                 new_restriction.left[sub_list[i]['new1']] = new_restriction.left[sub_list[i]['original']]
                 new_restriction.left[sub_list[i]['new2']] = 0 - new_restriction.left[sub_list[i]['original']]
                 new_restriction.left.pop(sub_list[i]['original'])
@@ -434,16 +436,16 @@ def sub_vars_restriction(restriction, sub_list):
     op = new_restriction.op
     right = new_restriction.right
 
-    if new_restriction.right['__ONE__'] < 0:
-        for var in new_restriction.left:
-            left[var] = 0 - new_restriction.left[var]
+    # if new_restriction.right['ONE'] < 0:
+    #     for var in new_restriction.left:
+    #         left[var] = 0 - new_restriction.left[var]
         
-        right['__ONE__'] = 0 - new_restriction.right['__ONE__']
+    #     right['ONE'] = 0 - new_restriction.right['ONE']
 
-        if new_restriction.op == '<=':
-            op = '>='
-        elif new_restriction.op == '>=':
-            op = '<='
+    #     if new_restriction.op == '<=':
+    #         op = '>='
+    #     elif new_restriction.op == '>=':
+    #         op = '<='
 
     return ExprCoefs(left, op, right)
 
@@ -466,10 +468,10 @@ def to_normal_form(restrictions):
         if op == '==':
             norm_restrictions.append(ExprCoefs(left, op, right))
         elif op == '<=':
-            left[f'__SLACK{counter}__'] = Fraction(1,1)
+            left[f'slack{counter}'] = Fraction(1,1)
             norm_restrictions.append(ExprCoefs(left, '==', right))
         elif op == '>=':
-            left[f'__SLACK{counter}__'] = Fraction(-1,1)
+            left[f'slack{counter}'] = Fraction(-1,1)
             norm_restrictions.append(ExprCoefs(left, '==', right))
         counter += 1
     return norm_restrictions
@@ -495,8 +497,8 @@ def to_array(obj, restrictions, variables):
     A = np.zeros((len(restrictions),len(variables)), dtype=np.object_)
     B = np.zeros((len(restrictions),1), dtype=np.object_)
     for i in range(len(restrictions)):
-        if '__ONE__' in restrictions[i].right:
-            B[i,0] = restrictions[i].right['__ONE__']
+        if 'ONE' in restrictions[i].right:
+            B[i,0] = restrictions[i].right['ONE']
         
         for j in range(len(variables)):
             if variables[j] in restrictions[i].left:
@@ -507,6 +509,7 @@ def to_array(obj, restrictions, variables):
     print(fmt % tuple(variables + ['B']))
     print('-'*150)
     print(fmt % tuple(list(line_obj) + [0]))
+    print('-'*150)
     for i in range(len(restrictions)):
         print(fmt % tuple(list(A[i,:]) + [B[i,0]]))
 
@@ -514,19 +517,22 @@ def to_array(obj, restrictions, variables):
 
     return A, B, line_obj
 
-def print_iter(n_var, n_rest, obj, aux, matrix):
-    print_iter.counter += 1
+def print_iter(n_var, n_rest, obj, aux, matrix, phase=1):
     print(f'Iteration number: {print_iter.counter}')
-    fmt = '%-6s'*n_rest + ' | ' + '%-6s'*n_var + ' | ' + '%-6s'*n_rest + ' | ' + '%-6s'
-    print(fmt % tuple(['EXT']*n_rest + [f'KEY{i}' for i in range(n_var)] + ['U']*n_rest + ['B']))
+    fmt = '%-6s'*1 + ' | ' + '%-6s'*n_var + ' | ' + '%-6s'*n_rest + ' | ' + '%-6s'
+    # fmt = '%-6s'*n_rest + ' | ' + '%-6s'*n_var + ' | ' + '%-6s'*n_rest + ' | ' + '%-6s'
+    print(fmt % tuple(['EXT']*1 + [f'{i}' for i in range(n_var)] + ['U']*n_rest + ['B']))
+    # print(fmt % tuple(['EXT']*n_rest + [f'{i}' for i in range(n_var)] + ['U']*n_rest + ['B']))
     # fmt = '%-6.2f'*n_rest + ' | ' + '%-6.2f'*n_var + ' | ' + '%-6.2f'*n_rest + ' | ' + '%-6.2f'
-    print('-'*150)
-    print(fmt % tuple(obj[0,:]))
-    print('-'*150)
-    print(fmt % tuple(aux[0,:]))
-    print('-'*150)
+    print('-'*180)
+    print(fmt % tuple(obj[:]) + ' True Objective')
+    print('-'*180)
+    if phase == 1:
+        print(fmt % tuple(aux[:]) + ' Auxiliar Objective')
+        print('-'*180)
     for i in range(n_rest):
         print(fmt % tuple(list(matrix[i,:])))
     print('*'*150)
+    print_iter.counter += 1
 
 print_iter.counter = 0
