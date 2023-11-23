@@ -51,16 +51,35 @@ def simplex(matrices, type_obj):
         aux_obj -= aux[i,:]
 
     print_iter(n_var, n_rest, ext_obj, aux_obj, aux)
+    original_aux = aux
     aux, ext_obj, base, is_feasible = tableau_first_phase(n_var, n_rest, ext_obj.copy(), aux_obj, aux.copy())
     if is_feasible:
-        aux, ext_obj, base, is_unlimited = tableau_second_phase(n_var, n_rest, ext_obj.copy(), aux.copy(), base)
+        aux, ext_obj, base, is_unlimited, col = tableau_second_phase(n_var, n_rest, ext_obj.copy(), aux.copy(), base)
         if is_unlimited:
-            print('unlimited')
+            certificate = np.zeros(aux.shape[1]-2, np.float64)
+            for i in range(base.size):
+                certificate[base[i]-1] = -aux[i,col]
+            certificate[col-1] = 1
+            solution = None
+            z = -1
+            decision = 'ilimitado'
         else:
-            print('optimal')
+            Ab = np.array([original_aux[:,i] for i in base.astype(np.int64)]).T
+            Ct = original_aux[:,-1].T
+            certificate = Ct@Ab
+            solution = np.zeros(aux.shape[1]-2)
+            for i in range(base.size):
+                solution[base[i]-1] = aux[i,-1]
+            z = np.float64(ext_obj[-1])
+            decision = 'otimo'
     else:
-        print('unfeasible')
-    return None, None, None
+        Ab = np.array([original_aux[:,i] for i in base.astype(np.int64)]).T
+        Ct = original_aux[:,-1].T
+        certificate = Ct@Ab
+        solution = None
+        z = -1
+        decision = 'inviavel'
+    return decision, solution, certificate, z
 
 def tableau_first_phase(n_var, n_rest, ext_obj, aux_obj, aux):
     base = np.zeros(n_rest, dtype=np.int64)
@@ -102,7 +121,7 @@ def tableau_second_phase(n_var, n_rest, ext_obj, aux, base):
         for col in indexes:
             if np.all(aux[:,col] <= 0):
             # if np.all(aux[:,col] <= 0) and np.any(aux[:,col] < 0):
-                return aux, ext_obj, base, True
+                return aux, ext_obj, base, True, col
             if ext_obj[col] >= 0:
                 break
             pivot_line = find_pivot_line(aux, col)
@@ -118,7 +137,7 @@ def tableau_second_phase(n_var, n_rest, ext_obj, aux, base):
     # print('certificate verification = ', -(aux_obj[:n_rest]*aux[:,-1]).sum())
     print('optimal value found in this phase = ', ext_obj[-1])
     print('*'*150)
-    return aux, ext_obj, base, False
+    return aux, ext_obj, base, False, None
 
 def find_pivot_line(aux, col):
     n_rest = aux.shape[0]

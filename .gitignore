@@ -2,3 +2,7 @@ simplex/
 testes/
 .vscode/*
 input/*
+inst/*
+out.txt
+InstTP2.zip
+.DS_Store
